@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29806.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Art.Web.Portal", "Art.Web.Portal\Art.Web.Portal.csproj", "{38F4B46E-A115-4F91-B5A7-65BC1DE516ED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{38F4B46E-A115-4F91-B5A7-65BC1DE516ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38F4B46E-A115-4F91-B5A7-65BC1DE516ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38F4B46E-A115-4F91-B5A7-65BC1DE516ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38F4B46E-A115-4F91-B5A7-65BC1DE516ED}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C96CB478-DFEC-40BA-9B61-36A7AE857FC3}
+	EndGlobalSection
+EndGlobal
