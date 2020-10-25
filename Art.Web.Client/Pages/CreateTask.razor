@@ -1,0 +1,395 @@
+﻿@page "/create-task"
+
+@inject NavigationManager NavigationManager
+@inject ITaskService TaskService
+@inject IMenuService MenuService
+
+<div class="container">
+    <h1>Create Task</h1>
+    <h6>Fill all fields to create task</h6>
+    <br/>
+    <EditForm Model="@_taskForm" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="form-group">
+            <label>Choose module</label>
+            <InputSelect @bind-Value="_taskForm.Module" class="form-control">
+                <option value="@Module.First">First module</option>
+                <option value="@Module.Second">Second module</option>
+                <option value="@Module.Third">Third module</option>
+                <option value="@Module.Fourth">Fourth module</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => _taskForm.Module)" />
+        </div>
+
+        <div class="form-group">
+            <label>Add topics</label>
+            <SearchByType OnAddItemCallback="AddTopic"
+                          OnRemoveItemCallback="RemoveTopic"
+                          Items="@_existingTopics" />
+            <ValidationMessage For="@(() => _taskForm.Topics)" />
+        </div>
+
+        <div class="form-group">
+            <label>Add tags</label>
+            <SearchByType OnAddItemCallback="AddTag"
+                          OnRemoveItemCallback="RemoveTag"
+                          Items="@_existingTags" />
+            <ValidationMessage For="@(() => _taskForm.Topics)" />
+        </div>
+
+        <div class="form-group">
+            <label>Add task name</label>
+            <InputText @bind-Value="_taskForm.Name" class="form-control" />
+            <ValidationMessage For="@(() => _taskForm.Name)" />
+        </div>
+
+        <div class="form-group">
+            <label>Add task body</label>
+            <MdEditor OnInputCallback="InputTaskBody" Body="@_taskForm.Body" />
+            <ValidationMessage For="@(() => _taskForm.Body)" />
+        </div>
+
+        <div class="form-group">
+            <label>Choose task type</label>
+            <select class="form-control" @onchange="(e => ChangeTaskType(e.Value.ToString()))">
+                <option value="@TaskType.Free">Free answer</option>
+                <option value="@TaskType.Single">Single answer</option>
+                <option value="@TaskType.Multiple">Multiple answers</option>
+                <option value="@TaskType.Match">Match answers</option>
+            </select>
+            <ValidationMessage For="@(() => _taskForm.Type)" />
+        </div>
+
+        @switch (_taskForm.Type)
+        {
+            case TaskType.Free:
+                <div class="form-group">
+                    <label>Add right answer</label>
+                    @for (var i = 0; i < _taskForm.Rights.Count(); ++i)
+                    {
+                        var index = i;
+                        var current = _taskForm.Rights.ElementAt(index);
+                        <input value="@current"
+                               class="form-control"
+                               @onchange="@(e => UpdateRightValue(index, e.Value.ToString()))" />
+                    }
+                    <ValidationMessage For="@(() => _taskForm.Answers)" />
+                    <ValidationMessage For="@(() => _taskForm.Rights)" />
+                </div>
+                break;
+
+            case TaskType.Single:
+                <div class="form-group">
+                    <label>Add answer variants</label>
+                    @for (var i = 0; i < _taskForm.Answers.Count(); ++i)
+                    {
+                        var index = i;
+                        var current = _taskForm.Answers.ElementAt(index);
+                        <input value="@current"
+                               class="form-control"
+                               @onchange="@(e => UpdateAnswerValue(index, e.Value.ToString()))" />
+                    }
+                    <div class="btn btn-light" @onclick="AddAnswerField">Add answer</div>
+                    <ValidationMessage For="@(() => _taskForm.Answers)" />
+                </div>
+                <div class="form-group">
+                    <label>Add right answer</label>
+                    @for (var i = 0; i < _taskForm.Rights.Count(); ++i)
+                    {
+                        var index = i;
+                        <select class="form-control"
+                                @onchange="(e => UpdateRightValue(index, e.Value.ToString()))">
+                            @for (var j = 0; j < _taskForm.Answers.Count(); ++j)
+                            {
+                                var currentOption = _taskForm.Answers.ElementAt(j);
+                                <option value="@currentOption">@currentOption</option>
+                            }
+                        </select>
+                    }
+                    <ValidationMessage For="@(() => _taskForm.Rights)" />
+                </div>
+                break;
+
+            case TaskType.Multiple:
+                <div class="form-group">
+                    <label>Add answer variants</label>
+                    @for (var i = 0; i < _taskForm.Answers.Count(); ++i)
+                    {
+                        var index = i;
+                        var current = _taskForm.Answers.ElementAt(index);
+                        <input value="@current"
+                               class="form-control"
+                               @onchange="@(e => UpdateAnswerValue(index, e.Value.ToString()))" />
+                    }
+                    <div class="btn btn-light" @onclick="AddAnswerField">Add answer</div>
+                    <ValidationMessage For="@(() => _taskForm.Answers)" />
+                </div>
+                <div class="form-group">
+                    <label>Add right answers</label>
+                    @for (var i = 0; i < _taskForm.Rights.Count(); ++i)
+                    {
+                        var index = i;
+                        <select class="form-control"
+                                @onchange="(e => UpdateRightValue(index, e.Value.ToString()))">
+                            @for (var j = 0; j < _taskForm.Answers.Count(); ++j)
+                            {
+                                var currentOption = _taskForm.Answers.ElementAt(j);
+                                <option value="@currentOption">@currentOption</option>
+                            }
+                        </select>
+                    }
+                    <div class="btn btn-light" @onclick="AddRightField">Add right</div>
+                    <ValidationMessage For="@(() => _taskForm.Rights)" />
+                </div>
+                break;
+
+            case TaskType.Match:
+                <div class="content">
+                    <div class="row">
+                        <div class="form-group col-6">
+                            <label>Add answer variants</label>
+                            @for (var i = 0; i < _taskForm.Answers.Count(); ++i)
+                            {
+                                var index = i;
+                                var current = _taskForm.Answers.ElementAt(index);
+                                <input value="@current"
+                                       class="form-control"
+                                       @onchange="@(e => UpdateAnswerValue(index, e.Value.ToString()))" />
+                            }
+                            <div class="btn btn-light" @onclick="AddAnswerField">Add answer</div>
+                            <ValidationMessage For="@(() => _taskForm.Answers)" />
+                        </div>
+                        <div class="form-group col-6">
+                            <label>Add matches</label>
+                            @for (var i = 0; i < _taskForm.Rights.Count(); ++i)
+                            {
+                                var index = i;
+                                var current = _taskForm.Rights.ElementAt(index);
+                                <input value="@current"
+                                       class="form-control"
+                                       @onchange="@(e => UpdateRightValue(index, e.Value.ToString()))" />
+                            }
+                        </div>
+                        <ValidationMessage For="@(() => _taskForm.Rights)" />
+                    </div>
+                </div>
+                break;
+
+            default:
+                break;
+        }
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger mt-3 mb-0">@_error</div>
+        }
+
+        <button class="btn btn-primary" type="submit">
+            @if (_loading)
+            {
+                <span class="spinner-border spinner-border-sm mr-1"></span>
+            }
+            Create
+        </button>
+        <button class="btn btn-primary" type="button" @onclick="CancelClick">Cancel</button>
+    </EditForm>
+</div>
+
+@code
+{
+    private readonly TaskForm _taskForm = new TaskForm
+    {
+        Module = Module.First,
+        Topics = new List<string>(),
+        Tags = new List<string>(),
+        Name = string.Empty,
+        Body = string.Empty,
+        Type = TaskType.Free,
+        Answers = new List<string>(),
+        Rights = new List<string> { string.Empty },
+    };
+
+    private IDictionary<string, bool> _existingTopics = new Dictionary<string, bool>();
+
+    private IDictionary<string, bool> _existingTags = new Dictionary<string, bool>();
+
+    private bool _loading = false;
+
+    private string _error = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _existingTopics = (await TaskService.GetAllTopicsAsync()).Topics.ToDictionary(t => t, t => false);
+        _existingTags = (await TaskService.GetAllTagsAsync()).Tags.ToDictionary(t => t, t => false);
+    }
+
+    private void AddTopic(string topic)
+    {
+        var topics = _taskForm.Topics.ToList();
+        topics.Add(topic);
+        _taskForm.Topics = topics;
+
+        if (_existingTopics.ContainsKey(topic))
+        {
+            _existingTopics[topic] = true;
+        }
+        else
+        {
+            _existingTopics.Add(topic, true);
+        }
+    }
+
+    private void RemoveTopic(string topic)
+    {
+        var topics = _taskForm.Topics.ToList();
+        topics.Remove(topic);
+        _taskForm.Topics = topics;
+        _existingTopics[topic] = false;
+    }
+
+    private void AddTag(string tag)
+    {
+        var tags = _taskForm.Tags.ToList();
+        tags.Add(tag);
+        _taskForm.Tags = tags;
+
+        if (_existingTags.ContainsKey(tag))
+        {
+            _existingTags[tag] = true;
+        }
+        else
+        {
+            _existingTags.Add(tag, true);
+        }
+    }
+
+    private void RemoveTag(string tag)
+    {
+        var tags = _taskForm.Tags.ToList();
+        tags.Remove(tag);
+        _taskForm.Tags = tags;
+        _existingTags[tag] = false;
+    }
+
+    private void InputTaskBody(string taskBody)
+    {
+        _taskForm.Body = taskBody;
+    }
+
+    #region Adding answers methods
+
+    private void ChangeTaskType(string type)
+    {
+        _taskForm.Type = (TaskType)Enum.Parse(typeof(TaskType), type);
+        var answers = _taskForm.Answers.ToList();
+        var rights = _taskForm.Rights.ToList();
+
+        switch (_taskForm.Type)
+        {
+            case TaskType.Free:
+                answers.Clear();
+                rights.Clear();
+                rights.Add(string.Empty);
+                break;
+
+            case TaskType.Single:
+            case TaskType.Multiple:
+                if (!answers.Any())
+                {
+                    answers.Add(string.Empty);
+                }
+                rights.Clear();
+                rights.Add(string.Empty);
+                break;
+
+            case TaskType.Match:
+                if (!answers.Any())
+                {
+                    answers.Add(string.Empty);
+                }
+                rights.Clear();
+                for (var i = 0; i < answers.Count(); ++i)
+                {
+                    rights.Add(string.Empty);
+                }
+                break;
+
+            default:
+                break;
+        }
+
+        _taskForm.Answers = answers;
+        _taskForm.Rights = rights;
+        StateHasChanged();
+    }
+
+    private void AddAnswerField()
+    {
+        _taskForm.Answers = _taskForm.Answers.Append(string.Empty);
+        if (_taskForm.Type == TaskType.Match)
+        {
+            _taskForm.Rights = _taskForm.Rights.Append(string.Empty);
+        }
+        StateHasChanged();
+    }
+
+    private void AddRightField()
+    {
+        _taskForm.Rights = _taskForm.Rights.Append(string.Empty);
+        StateHasChanged();
+    }
+
+    private void UpdateAnswerValue(int index, string answer)
+    {
+        var answers = _taskForm.Answers.ToList();
+        answers[index] = answer;
+        _taskForm.Answers = answers;
+        StateHasChanged();
+    }
+
+    private void UpdateRightValue(int index, string right)
+    {
+        var rights = _taskForm.Rights.ToList();
+        rights[index] = right;
+        _taskForm.Rights = rights;
+        StateHasChanged();
+    }
+
+    #endregion
+
+    private async Task HandleValidSubmit()
+    {
+        _loading = true;
+
+        try
+        {
+            await TaskService.CreateAsync(new TaskPost
+            {
+                Answers = _taskForm.Answers,
+                Body = _taskForm.Body,
+                ModuleId = _taskForm.Module,
+                Name = _taskForm.Name,
+                Rights = _taskForm.Rights,
+                Tags = _taskForm.Tags,
+                TaskTypeId = _taskForm.Type,
+                Topics = _taskForm.Topics,
+            });
+            NavigationManager.NavigateTo("");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _loading = false;
+            StateHasChanged();
+        }
+
+        MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        MenuService.NotifyChanged();
+    }
+
+    private void CancelClick()
+    {
+        NavigationManager.NavigateTo("");
+    }
+}

@@ -1,0 +1,42 @@
+﻿@inject NavigationManager NavigationManager
+@inject IAuthenticationService AuthenticationService
+
+<div class="top-row">
+    @if (AuthenticationService.User != null)
+    {
+        <button class="nav-link btn btn-link" @onclick="OnProfile">@_email</button>
+        <button class="nav-link btn btn-link" @onclick="OnLogout">Log out</button>
+    }
+    else
+    {
+        <a href="mailto:addme@hse.ru">Register</a>
+        <button class="nav-link btn btn-link" @onclick="OnLogin">Log in</button>
+    }
+</div>
+
+@code{
+    private string _email = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationService.User != null)
+        {
+            _email = AuthenticationService.User.Email;
+        }
+    }
+
+    private void OnProfile()
+    {
+        NavigationManager.NavigateTo("user-profile");
+    }
+
+    private async Task OnLogout()
+    {
+        await AuthenticationService.Logout();
+    }
+
+    private void OnLogin()
+    {
+        NavigationManager.NavigateTo("login");
+    }
+}

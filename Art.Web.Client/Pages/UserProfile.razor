@@ -1,0 +1,94 @@
+﻿@page "/user-profile"
+
+@inject IUserService UserService
+@inject IAuthenticationService AuthenticationService
+@inject NavigationManager NavigationManager
+
+<div class="col-md-6 offset-md-3 mt-5">
+    <div class="card">
+        <h4 class="card-header">Fill all lines to registry new user</h4>
+        <div class="card-body">
+            <EditForm Model="@_registrationForm" OnValidSubmit="HandleValidSubmit">
+                <div class="form-group">
+                    <label>Email</label>
+                    <InputText @bind-Value="_registrationForm.Email" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <InputText @bind-Value="_registrationForm.Password" type="password" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <InputText @bind-Value="_registrationForm.FirstName" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>SecondName</label>
+                    <InputText @bind-Value="_registrationForm.SecondName" type="form-control" class="form-control" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="alert alert-danger mt-3 mb-0">@_error</div>
+                }
+
+                <button class="btn btn-primary" type="submit">
+                    @if (_loading)
+                    {
+                        <span class="spinner-border spinner-border-sm mr-1"></span>
+                    }
+                    Save
+                </button>
+                <button class="btn btn-primary" type="button" @onclick="CancelChanges">Cancel</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    private readonly RegistrationForm _registrationForm = new RegistrationForm();
+
+    private bool _loading = false;
+
+    private string _error = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserService.Get(AuthenticationService.User.Id);
+        _registrationForm.Role = user.PersonRoleId;
+        _registrationForm.Email = user.Email;
+        _registrationForm.Password = user.Password;
+        _registrationForm.FirstName = user.FirstName;
+        _registrationForm.SecondName = user.SecondName;
+    }
+
+    private async void HandleValidSubmit()
+    {
+        _loading = true;
+
+        try
+        {
+            await UserService.Put(
+                AuthenticationService.User.Id,
+                new PersonPut
+                {
+                    Email = _registrationForm.Email,
+                    Password = _registrationForm.Password,
+                    FirstName = _registrationForm.FirstName,
+                    SecondName = _registrationForm.SecondName,
+                });
+            NavigationManager.NavigateTo("");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelChanges()
+    {
+        NavigationManager.NavigateTo("");
+    }
+}

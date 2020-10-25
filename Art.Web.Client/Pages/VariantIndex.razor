@@ -1,0 +1,86 @@
+﻿@page "/variant-index"
+
+@attribute [Authorize]
+
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService LocalStorageService
+@inject IVariantService VariantService
+
+<h1>Variants</h1>
+
+<div class="row">
+    <button class="btn btn-light col-6" type="button" @onclick="ManuallyAddNewVariant">Create manually</button>
+    <button class="btn btn-light col-6" type="button" @onclick="GenerateNewVariant">Generate automatically</button>
+</div>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+
+@foreach (var variant in _variants)
+{
+    var current = variant;
+    <VariantCard OnEditCallback="EditVariant"
+                 OnViewHistoryCallback="ViewHistory"
+                 OnRemoveCallback="RemoveVariant"
+                 OnExportCallback="ExportVariant"
+                 Variant="@current"/>
+}
+
+@code
+{
+    private bool _loading = true;
+
+    private IEnumerable<VariantGet> _variants = new List<VariantGet>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        _variants = await VariantService.GetAllAsync();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void ManuallyAddNewVariant()
+    {
+        NavigationManager.NavigateTo($"variant-create");
+    }
+
+    private void GenerateNewVariant()
+    {
+        NavigationManager.NavigateTo($"variant-generate");
+    }
+
+    private void EditVariant(long variantId)
+    {
+        NavigationManager.NavigateTo($"variant-edit/{variantId}");
+    }
+
+    private void ViewHistory(long variantId)
+    {
+        NavigationManager.NavigateTo($"variant-history/{variantId}");
+    }
+
+    private async Task RemoveVariant(long variantId)
+    {
+        await VariantService.DeleteAsync(variantId);
+
+        var tasks = _variants.ToList();
+        tasks.Remove(tasks.Find(v => v.Id == variantId));
+        _variants = tasks;
+        StateHasChanged();
+    }
+
+    private async Task ExportVariant(long variantId)
+    {
+        var variant = await VariantService.GetVariantForExportByVariantId(variantId);
+        var json = JsonSerializer.Serialize(variant);
+        var file = Encoding.UTF8.GetBytes(json);
+        await JsRuntime.InvokeVoidAsync("BlazorDownloadFile", "ExportedVariant.json", "application/json", file);
+    }
+}
+
+

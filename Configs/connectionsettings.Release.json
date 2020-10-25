@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "ART": "azure-db"
+  }
+}

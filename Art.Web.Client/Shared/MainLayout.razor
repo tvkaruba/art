@@ -1,0 +1,42 @@
+﻿@inherits LayoutComponentBase
+
+@implements IDisposable
+
+@inject IAuthenticationService AuthenticationService
+@inject IMenuService MenuService
+@inject NavigationManager NavigationManager
+
+@if (AuthenticationService.User != null)
+{
+    <div class="sidebar">
+        <NavMenu HasConflicts="@MenuService.HasConflicts" />
+    </div>
+}
+
+<div class="main">
+    <div class="top-row px-4">
+        <LoginDisplay />
+    </div>
+
+    <div class="content px-4">
+        @Body
+    </div>
+</div>
+
+@code
+{
+    protected override void OnInitialized()
+    {
+        MenuService.OnChanged += MenuChanged;
+    }
+
+    void IDisposable.Dispose()
+    {
+        MenuService.OnChanged -= MenuChanged;
+    }
+
+    private void MenuChanged(object obj, EventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

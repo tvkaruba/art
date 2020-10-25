@@ -1,0 +1,105 @@
+﻿@page "/task-history/{id}"
+
+@attribute [Authorize]
+
+@inject ITaskService TaskService
+@inject NavigationManager NavigationManager
+
+<h1>Task history</h1>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+@if (Task != null)
+{
+    <div class="card mt-2">
+        <label class="card-header">@Task.Name</label>
+        <div class="card-body container">
+            <div class="row">
+                Topics:
+                @foreach (var topic in Task.Topics)
+                {
+                    <div class="ml-1">@topic;</div>
+                }
+            </div>
+
+            <div class="row">
+                @Task.ModuleId.ToString() module; @Task.TaskTypeId.ToString() answer type
+            </div>
+
+            <hr />
+
+            <text>@Task.Body</text>
+
+            <hr />
+
+            <div class="row">
+                Tags:
+                @foreach (var tag in Task.Tags)
+                {
+                    <div class="ml-1">@tag;</div>
+                }
+            </div>
+
+            <div class="text-muted">@(Task.ChangedAtUtc ?? Task.CreatedAtUtc)</div>
+        </div>
+    </div>
+}
+
+@foreach (var task in TaskHistories)
+{
+    <hr />
+    <div class="content">
+        <label>@task.Name</label>
+
+        <div class="row">
+            @task.ModuleId.ToString() module; @task.TaskTypeId.ToString() answer type
+        </div>
+
+        <br />
+
+        <text>@task.Body</text>
+
+        <br />
+
+        <div class="text-muted">@(task.ChangedAtUtc ?? Task.CreatedAtUtc)</div>
+    </div>
+}
+
+<hr/>
+<div class="btn btn-primary" @onclick="GoBack">Back</div>
+
+<style>
+    .row {
+        margin-left: 0px
+    }
+</style>
+
+@code
+{
+    [Parameter] public string Id { get; set; }
+
+    private bool _loading = true;
+
+    public TaskGet Task = null;
+
+    public IEnumerable<TaskHistoryGet> TaskHistories = new List<TaskHistoryGet>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        Task = await TaskService.GetAsync(long.Parse(Id));
+        TaskHistories = await TaskService.GetTaskHistoriesByTaskIdAsync(long.Parse(Id));
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("");
+    }
+}

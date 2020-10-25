@@ -1,0 +1,38 @@
+﻿
+<div class="row">
+    <div class="col-6">
+        <textarea class="form-control"
+                  @bind-value="Body"
+                  @bind-value:event="oninput"
+                  @onkeyup="InputTaskBody"></textarea>
+    </div>
+    <div class="col-6">
+        @((MarkupString)_preview)
+    </div>
+</div>
+
+@code
+{
+    [Parameter]
+    public EventCallback<string> OnInputCallback { get; set; }
+
+    [Parameter]
+    public string Body
+    {
+        get => _body;
+
+        set
+        {
+            _preview = Markdown.ToHtml(value, _pipeline);
+            _body = value;
+        }
+    }
+
+    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseSyntaxHighlighting().Build();
+
+    private string _body = string.Empty;
+
+    private string _preview = string.Empty;
+
+    public async Task InputTaskBody() => await OnInputCallback.InvokeAsync(Body);
+}

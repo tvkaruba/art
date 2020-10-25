@@ -1,0 +1,284 @@
+﻿@page "/variant-edit/{id}"
+
+@attribute [Authorize]
+
+@inject ITaskService TaskService
+@inject IVariantService VariantService
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService LocalStorageService
+
+<h1>Edit variant</h1>
+
+<div class="row mb-2 mr-3">
+    <input type="text"
+           class="searchTerm"
+           placeholder="Type search pattern..."
+           @bind-value="_filters.SearchTerm"
+           @bind-value:event="oninput">
+    <button type="button" class="searchButton" @onclick="Search">Search</button>
+</div>
+
+<div class="row">
+    <select class="mr-2" value="@(_filters.TaskTypeId.HasValue ? _filters.TaskTypeId.ToString() : "null")"
+            @onchange="@(e => OnTypeFilterChanged(e.Value.ToString()))">
+        <option value="null">Select type</option>
+        <option value="@TaskType.Free.ToString()">Free answer</option>
+        <option value="@TaskType.Single.ToString()">Single answer</option>
+        <option value="@TaskType.Multiple.ToString()">Multiple answers</option>
+        <option value="@TaskType.Match.ToString()">Match answers</option>
+    </select>
+
+    <select class="mr-2" value="@(_filters.ModuleId.HasValue ? _filters.ModuleId.ToString() : "null")"
+            @onchange="@(e => OnModuleFilterChanged(e.Value.ToString()))">
+        <option value="null">Select module</option>
+        <option value="@Module.First.ToString()">First module</option>
+        <option value="@Module.Second.ToString()">Second module</option>
+        <option value="@Module.Third.ToString()">Third module</option>
+        <option value="@Module.Fourth.ToString()">Fourth module</option>
+    </select>
+
+    <select @bind-value="@_filters.SortTypeId" @bind-value:event="onchange">
+        <option value="@SortType.Newest">Newest</option>
+        <option value="@SortType.Oldest">Oldest</option>
+    </select>
+</div>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+@if (_tasks != null)
+{
+    <div class="scrollable-container mt-2 mb-2">
+        <div style="max-height: 100%; overflow: auto;">
+            @foreach (var task in _tasks)
+            {
+                var taskId = task.Id;
+                <div class="card"
+                     style=@(_markedTasks.Contains(taskId) ? "background-color: #00b4cc" : "background-color: azure")
+                     @onclick="@(() => MarkTask(taskId.ToString()))">
+                    <label class="card-header">@task.Name</label>
+                    <div class="card-body">
+                        <div class="row">
+                            Topics:
+                            @foreach (var topic in task.Topics)
+                            {
+                                <div class="ml-1">@topic;</div>
+                            }
+                        </div>
+
+                        <div class="row">
+                            @task.ModuleId.ToString() module; @task.TaskTypeId.ToString() answer type
+                        </div>
+
+                        <hr />
+
+                        <text>@((MarkupString)Markdown.ToHtml(task.Body, _pipeline))</text>
+
+                        <hr />
+
+                        <div class="row">
+                            Tags:
+                            @foreach (var tag in task.Tags)
+                            {
+                                <div class="ml-1">@tag;</div>
+                            }
+                        </div>
+
+                        <div class="text-muted">@(task.ChangedAtUtc ?? task.CreatedAtUtc)</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <Pager PageSize="@PageSize" ItemsCount="@_tasksCount" OnChangePageCallback="@ChangePage" />
+}
+
+<div class="row mt-2">
+    <select class="mr-2" @bind-value="@_module" @bind-value:event="onchange">
+        <option value="@Module.First.ToString()">First module</option>
+        <option value="@Module.Second.ToString()">Second module</option>
+        <option value="@Module.Third.ToString()">Third module</option>
+        <option value="@Module.Fourth.ToString()">Fourth module</option>
+    </select>
+
+    <input type="text"
+           placeholder="Type variant name..."
+           @bind-value="_variantName"
+           @bind-value:event="oninput">
+</div>
+
+<div class="btn btn-primary mt-2" @onclick="UpdateVariant">
+    @if (_loadingCreate)
+    {
+        <span class="spinner-border spinner-border-sm mr-1"></span>
+    }
+    Save
+</div>
+<div class="btn btn-light mt-2" @onclick="@(() => NavigationManager.NavigateTo("variant-index"))">Cancel</div>
+
+<style>
+    .row {
+        margin-left: 0px
+    }
+
+    .scrollable-container {
+        height: calc(100vh - 320px);
+        position: relative;
+    }
+
+    .searchTerm {
+        width: calc(100% - 100px);
+        border: 3px solid #00B4CC;
+        border-right: none;
+        padding: 5px;
+        height: 36px;
+        border-radius: 5px 0 0 5px;
+        outline: none;
+        color: #9DBFAF;
+    }
+
+        .searchTerm:focus {
+            color: #00B4CC;
+        }
+
+    .searchButton {
+        width: 100px;
+        height: 36px;
+        border: 1px solid #00B4CC;
+        background: #00B4CC;
+        text-align: center;
+        color: #fff;
+        border-radius: 0 5px 5px 0;
+        cursor: pointer;
+        font-size: 20px;
+    }
+</style>
+
+@code
+{
+    [Parameter] public string Id { get; set; }
+
+    public const int PageSize = 10;
+
+    private bool _loading = true;
+
+    private bool _loadingCreate = false;
+
+    private IEnumerable<TaskGet> _tasks = null;
+
+    private IEnumerable<long> _markedTasks = new List<long>();
+
+    private Module _module = Module.First;
+
+    private string _variantName = string.Empty;
+
+    private long _tasksCount = 0;
+
+    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseSyntaxHighlighting().Build();
+
+    private TaskFilters _filters = new TaskFilters
+    {
+        ModuleId = null,
+        TaskTypeId = null,
+        SortTypeId = SortType.Newest,
+        SearchTerm = string.Empty,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        var variant = await VariantService.GetAsync(long.Parse(Id));
+        _module = variant.ModuleId;
+        _variantName = variant.Name;
+
+        _markedTasks = (await VariantService.GetTasksByVariantIdAsync(long.Parse(Id))).Select(t => t.Id);
+        _tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void MarkTask(string taskIdString)
+    {
+        var taskId = long.Parse(taskIdString);
+        var markedTasks = _markedTasks.ToList();
+
+        if (markedTasks.Contains(taskId))
+        {
+            markedTasks.Remove(taskId);
+        }
+        else
+        {
+            markedTasks.Add(taskId);
+        }
+
+        _markedTasks = markedTasks;
+        StateHasChanged();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _tasks = await TaskService.GetTasksWithPaginationAndFiltersAsync(page, PageSize, _filters);
+        StateHasChanged();
+    }
+
+    private async Task Search()
+    {
+        _tasks = null;
+        _tasksCount = 0;
+        _loading = true;
+        StateHasChanged();
+
+        _tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnTypeFilterChanged(string type)
+    {
+        if (type == "null")
+        {
+            _filters.TaskTypeId = null;
+        }
+        else
+        {
+            _filters.TaskTypeId = (TaskType)Enum.Parse(typeof(TaskType), type);
+        }
+    }
+
+    private void OnModuleFilterChanged(string module)
+    {
+        if (module == "null")
+        {
+            _filters.ModuleId = null;
+        }
+        else
+        {
+            _filters.ModuleId = (Module)Enum.Parse(typeof(Module), module);
+        }
+    }
+
+    private async Task UpdateVariant()
+    {
+        _loadingCreate = true;
+        StateHasChanged();
+
+        await VariantService.UpdateAsync(
+            long.Parse(Id),
+            new VariantPut
+            {
+                ModuleId = _module,
+                Name = _variantName,
+                TaskIds = _markedTasks,
+            });
+
+        NavigationManager.NavigateTo("variant-index");
+    }
+}

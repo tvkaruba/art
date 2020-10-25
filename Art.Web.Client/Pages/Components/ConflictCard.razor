@@ -1,0 +1,85 @@
+﻿@inherits ConflictCardBase
+
+<div class="row">
+    <div class="card col-6 mt-2">
+        <label class="card-header">@LeftTask.Name</label>
+        <div class="card-body container">
+            <div class="row">
+                Topics:
+                @foreach (var topic in LeftTask.Topics)
+                {
+                    <div class="ml-1">@topic;</div>
+                }
+            </div>
+
+            <div class="row">
+                @LeftTask.ModuleId.ToString() module; @LeftTask.TaskTypeId.ToString() answer type
+            </div>
+
+            <hr />
+
+            <div class="wrap">
+                <text>@((MarkupString)RenderedLeftTaskBody)</text>
+            </div>
+
+            <hr />
+
+            <div class="row">
+                Tags:
+                @foreach (var tag in LeftTask.Tags)
+                {
+                    <div class="ml-1">@tag;</div>
+                }
+            </div>
+
+            <div class="text-muted">@(LeftTask.ChangedAtUtc ?? LeftTask.CreatedAtUtc)</div>
+        </div>
+    </div>
+    
+    <div class="card mt-2 col-6">
+        <label class="card-header">@RightTask.Name</label>
+        <div class="card-body container">
+            <div class="row">
+                Topics:
+                @foreach (var topic in RightTask.Topics)
+                {
+                    <div class="ml-1">@topic;</div>
+                }
+            </div>
+
+            <div class="row">
+                @RightTask.ModuleId.ToString() module; @RightTask.TaskTypeId.ToString() answer type
+            </div>
+
+            <hr />
+
+            <div class="wrap">
+                <text>@((MarkupString)RenderedRightTaskBody)</text>
+            </div>
+
+            <hr />
+
+            <div class="row">
+                Tags:
+                @foreach (var tag in RightTask.Tags)
+                {
+                    <div class="ml-1">@tag;</div>
+                }
+            </div>
+
+            <div class="text-muted">@(RightTask.ChangedAtUtc ?? RightTask.CreatedAtUtc)</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="btn btn-light col-4" @onclick="KeepLeft">Keep left</div>
+    <div class="btn btn-light col-4" @onclick="KeepBoth">Keep both</div>
+    <div class="btn btn-light col-4" @onclick="KeepRight">Keep right</div>
+</div>
+
+<style>
+    .row {
+        margin-left: 0px
+    }
+</style>

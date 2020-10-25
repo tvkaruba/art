@@ -1,0 +1,133 @@
+﻿@page "/users"
+
+@attribute [Authorize]
+
+@inject IUserService UserService
+@inject IAuthenticationService AuthenticationService
+@inject NavigationManager NavigationManager
+
+@if (AuthenticationService.User.Role == nameof(PersonRole.Administrator))
+{
+    <div class="card mt-4">
+        <h4 class="card-header">User managment panel</h4>
+        <div class="card-body">
+
+            <button class="btn btn-light col-12" type="button" @onclick="AddNewUser">Registry new user</button>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger mt-3 mb-0">@_error</div>
+            }
+
+            @if (_loading)
+            {
+                <div class="spinner-border spinner-border-sm"></div>
+            }
+            @if (_users != null)
+            {
+                @for (var i = 0; i < _users.Count(); ++i)
+                {
+                    var index = i;
+                    var user = _users.ElementAt(i);
+
+                    <div class="row mt-2">
+                        <div class="form-group col-6">
+                            <label>Email</label>
+                            <input class="form-control" @bind-value="@user.Email" />
+                        </div>
+                        <div class="form-group col-6">
+                            <label>Password</label>
+                            <input class="form-control" @bind-value="@user.Password" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group col-6">
+                            <label>First name</label>
+                            <input class="form-control" @bind-value="@user.FirstName" />
+                        </div>
+                        <div class="form-group col-6">
+                            <label>Second name</label>
+                            <input class="form-control" @bind-value="@user.SecondName" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group col-6">
+                            <label>Role</label>
+                            <select class="form-control" @bind-value="@user.PersonRoleId" @bind-value:event="onchange">
+                                <option value="@PersonRole.Administrator">Administrator</option>
+                                <option value="@PersonRole.User">User</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" type="button" @onclick="@(() => UpdateUserInfo(index))">Save info</button>
+                    <button class="btn btn-primary" type="button" @onclick="@(() => RemoveUser(index))">Remove user</button>
+                    <hr/>
+                }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = false;
+
+    private string _error = string.Empty;
+
+    private IEnumerable<PersonGet> _users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        _users = await UserService.GetAll();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task UpdateUserInfo(int index)
+    {
+        try
+        {
+            var user = _users.ElementAt(index);
+            await UserService.Put(
+                user.Id,
+                new PersonPut
+                {
+                    Email = user.Email,
+                    Password = user.Password,
+                    FirstName = user.FirstName,
+                    SecondName = user.SecondName,
+                    PersonRoleId = user.PersonRoleId,
+                });
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveUser(int index)
+    {
+        try
+        {
+            var user = _users.ElementAt(index);
+            await UserService.Delete(user.Id);
+            var users = _users.ToList();
+            users.Remove(user);
+            _users = users;
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+        StateHasChanged();
+    }
+
+    private void AddNewUser()
+    {
+        NavigationManager.NavigateTo("registry");
+    }
+}

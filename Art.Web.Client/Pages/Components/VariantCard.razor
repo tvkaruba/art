@@ -1,0 +1,14 @@
+﻿@inherits VariantCardBase
+
+<div class="card mt-2">
+    <label class="card-header">@Variant.Name</label>
+    <div class="card-body container">
+        <div>@Variant.ModuleId.ToString() module;</div>
+        <div class="text-muted">@(Variant.ChangedAtUtc ?? Variant.CreatedAtUtc)</div>
+
+        <div class="btn btn-light" @onclick="EditVariant">Edit</div>
+        <div class="btn btn-light" @onclick="ViewHistory">History</div>
+        <div class="btn btn-light" @onclick="ExportVariant">Export</div>
+        <div class="btn btn-light" @onclick="RemoveVariant">Remove</div>
+    </div>
+</div>

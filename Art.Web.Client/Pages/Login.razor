@@ -1,0 +1,77 @@
+﻿@page "/login"
+
+@inject IAuthenticationService AuthenticationService
+@inject NavigationManager NavigationManager
+
+<div class="col-md-6 offset-md-3 mt-5">
+    <div class="alert alert-info">
+        Username: admin<br/>
+        Password: admin
+    </div>
+    <div class="card">
+        <h4 class="card-header">Login</h4>
+        <div class="card-body">
+            <EditForm Model="@_loginForm" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <div class="form-group">
+                    <label>Username</label>
+                    <InputText @bind-Value="_loginForm.Username" class="form-control" />
+                    <ValidationMessage For="@(() => _loginForm.Username)" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <InputText @bind-Value="_loginForm.Password" type="password" class="form-control" />
+                    <ValidationMessage For="@(() => _loginForm.Password)" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="alert alert-danger mt-3 mb-0">@_error</div>
+                }
+
+                <button class="btn btn-primary" type="submit">
+                    @if (_loading)
+                    {
+                        <span class="spinner-border spinner-border-sm mr-1"></span>
+                    }
+                    Login
+                </button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    private readonly LoginForm _loginForm = new LoginForm();
+
+    private bool _loading = false;
+
+    private string _error = null;
+
+    protected override void OnInitialized()
+    {
+        // Redirect to home if already login.
+        if (AuthenticationService.User != null)
+        {
+            NavigationManager.NavigateTo("");
+        }
+    }
+
+    private async void HandleValidSubmit()
+    {
+        _loading = true;
+
+        try
+        {
+            await AuthenticationService.Login(_loginForm.Username, _loginForm.Password);
+            NavigationManager.NavigateTo("", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+}

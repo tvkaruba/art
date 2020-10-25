@@ -1,0 +1,44 @@
+﻿@inherits TaskCardBase
+
+<div class="card mt-2">
+    <label class="card-header">@Task.Name</label>
+    <div class="card-body container">
+        <div class="row">
+            Topics:
+            @foreach (var topic in Task.Topics)
+            {
+                <div class="ml-1">@topic;</div>
+            }
+        </div>
+
+        <div class="row">
+            @Task.ModuleId.ToString() module; @Task.TaskTypeId.ToString() answer type
+        </div>
+
+        <hr />
+
+        <text>@((MarkupString)RenderedTaskBody)</text>
+
+        <hr />
+
+        <div class="row">
+            Tags:
+            @foreach (var tag in Task.Tags)
+            {
+                <div class="ml-1">@tag;</div>
+            }
+        </div>
+
+        <div class="text-muted">@(Task.ChangedAtUtc ?? Task.CreatedAtUtc)</div>
+
+        <div class="btn btn-light" @onclick="EditTask">Edit</div>
+        <div class="btn btn-light" @onclick="ViewHistory">History</div>
+        <div class="btn btn-light" @onclick="RemoveTask">Remove</div>
+    </div>
+</div>
+
+<style>
+    .row {
+        margin-left: 0px
+    }
+</style>

@@ -1,0 +1,85 @@
+﻿@inject IAuthenticationService AuthenticationService
+@inject ITaskService TaskService
+@inject IMenuService MenuService
+
+<div class="top-row pl-4 navbar navbar-dark">
+    <a class="navbar-brand" href="">ART</a>
+    <button class="navbar-toggler" @onclick="ToggleNavMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <ul class="nav flex-column">
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-list" aria-hidden="true"></span>
+                Task management
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="create-task">
+                <span class="oi oi-plus" aria-hidden="true"></span>
+                Create task
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="upload-tasks">
+                <span class="oi oi-data-transfer-upload" aria-hidden="true"></span>
+                Upload tasks
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="variant-index">
+                <span class="oi oi-list-rich" aria-hidden="true"></span>
+                Variant management
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="conflicts">
+                <span aria-hidden="true"
+                      class=@(HasConflicts ? "oi oi-bug red" : "oi oi-bug green")></span>
+                Resolve conflicts
+            </NavLink>
+        </li>
+        @if (AuthenticationService.User.Role == nameof(PersonRole.Administrator))
+        {
+            <li class="nav-item px-3">
+                <NavLink class="nav-link" href="users">
+                    <span class="oi oi-person" aria-hidden="true"></span>
+                    User management
+                </NavLink>
+            </li>
+        }
+    </ul>
+</div>
+
+<style>
+    .red {
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(-50deg) saturate(600%) contrast(0.8);
+    }
+
+    .green {
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(50deg) saturate(1000%) contrast(0.8);
+    }
+</style>
+
+@code 
+{
+    [Parameter] public bool HasConflicts { get; set; }
+
+    private bool collapseNavMenu = true;
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        MenuService.NotifyChanged();
+    }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

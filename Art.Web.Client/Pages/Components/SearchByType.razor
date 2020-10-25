@@ -1,0 +1,69 @@
+﻿<div class="container">
+    <div class="row">
+        <input type="text"
+               placeholder="Search..."
+               @bind-value="_searchTerm"
+               @bind-value:event="oninput" />
+        <div class="btn btn-light oi oi-plus" @onclick="AddNew"></div>
+        <span class="text-muted ml-5">
+            Showing @FilteredItems.Count() out of @Items.Count()
+        </span>
+    </div>
+
+    <div class="row">
+        @foreach (var filteredItem in FilteredItems)
+        {
+            var item = filteredItem;
+            @if(Items[filteredItem] == false)
+            {
+                <div class="card mr-1 mt-1 border-dark"
+                     style="background-color: azure"
+                     @onclick="(() => AddItem(item))">
+                    @filteredItem
+                </div>
+            }
+            else
+            {
+                <div class="card mr-1 mt-1 border-dark"
+                     style="background-color: skyblue"
+                     @onclick="(() => RemoveItem(item))">
+                    @filteredItem
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code 
+{
+    [Parameter]
+    public EventCallback<string> OnAddItemCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnRemoveItemCallback { get; set; }
+
+    [Parameter]
+    public IDictionary<string, bool> Items { get; set; } = new Dictionary<string, bool>();
+
+    private string _searchTerm = string.Empty;
+
+    private IEnumerable<string> FilteredItems => Items.Where(i => i.Key.ToLower().Contains(_searchTerm.ToLower())).Select(p => p.Key).ToList();
+
+    private async Task AddNew()
+    {
+        await OnAddItemCallback.InvokeAsync(_searchTerm);
+        StateHasChanged();
+    }
+
+    private async Task AddItem(string markedItem)
+    {
+        await OnAddItemCallback.InvokeAsync(markedItem);
+        StateHasChanged();
+    }
+
+    private async Task RemoveItem(string unmarkedItem)
+    {
+        await OnRemoveItemCallback.InvokeAsync(unmarkedItem);
+        StateHasChanged();
+    }
+}

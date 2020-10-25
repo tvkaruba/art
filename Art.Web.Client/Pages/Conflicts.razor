@@ -1,0 +1,75 @@
+﻿@page "/conflicts"
+
+@attribute [Authorize]
+
+@inject NavigationManager NavigationManager
+@inject ITaskService TaskService
+@inject IMenuService MenuService
+
+<h1>Resolve conflicts</h1>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+@if (_conflicts != null)
+{
+    @foreach (var conflict in _conflicts)
+    {
+        var left = conflict.FirstTask;
+        var right = conflict.SecondTask;
+        <ConflictCard OnKeepLeftTaskCallback="KeepOnlyOne"
+                      OnKeepRightTaskCallback="KeepOnlyOne"
+                      OnKeepBothTasksCallback="KeepBoth"
+                      LeftTask="@left"
+                      RightTask="@right" />
+    }
+}
+
+@code
+{
+    private bool _loading = true;
+
+    private IEnumerable<TaskConflictsGet> _conflicts = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        _conflicts = await TaskService.GetTaskConflicts();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task KeepOnlyOne(long taskId)
+    {
+        await TaskService.DeleteAsync(taskId);
+
+        var conflicts = _conflicts.ToList();
+        conflicts.RemoveAll(c => c.FirstTask.Id == taskId || c.SecondTask.Id == taskId);
+        _conflicts = conflicts;
+
+        StateHasChanged();
+
+        MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        MenuService.NotifyChanged();
+    }
+
+    private async Task KeepBoth((long left, long right) tasks)
+    {
+        await TaskService.RemoveTaskConflicts(tasks.left, tasks.right);
+
+        var conflicts = _conflicts.ToList();
+        conflicts.RemoveAll(c => (c.FirstTask.Id == tasks.left && c.SecondTask.Id == tasks.right) ||
+                              (c.FirstTask.Id == tasks.right && c.SecondTask.Id == tasks.left));
+        _conflicts = conflicts;
+
+        StateHasChanged();
+
+        MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        MenuService.NotifyChanged();
+    }
+}
+

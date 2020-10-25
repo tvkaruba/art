@@ -1,0 +1,209 @@
+﻿@page "/"
+
+@attribute [Authorize]
+
+@inject ITaskService TaskService
+@inject IMenuService MenuService
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService LocalStorageService
+
+<h1>Tasks</h1>
+
+<div class="row mb-2 mr-3">
+    <input type="text"
+           class="searchTerm"
+           placeholder="Type search pattern..."
+           @bind-value="_filters.SearchTerm"
+           @bind-value:event="oninput">
+    <button type="button" class="searchButton" @onclick="Search">Search</button>
+</div>
+
+<div class="row">
+    <select class="mr-2" value="@(_filters.TaskTypeId.HasValue ? _filters.TaskTypeId.ToString() : "null")"
+            @onchange="@(e => OnTypeFilterChanged(e.Value.ToString()))">
+        <option value="null">Select type</option>
+        <option value="@TaskType.Free.ToString()">Free answer</option>
+        <option value="@TaskType.Single.ToString()">Single answer</option>
+        <option value="@TaskType.Multiple.ToString()">Multiple answers</option>
+        <option value="@TaskType.Match.ToString()">Match answers</option>
+    </select>
+
+    <select class="mr-2" value="@(_filters.ModuleId.HasValue ? _filters.ModuleId.ToString() : "null")"
+            @onchange="@(e => OnModuleFilterChanged(e.Value.ToString()))">
+        <option value="null">Select module</option>
+        <option value="@Module.First.ToString()">First module</option>
+        <option value="@Module.Second.ToString()">Second module</option>
+        <option value="@Module.Third.ToString()">Third module</option>
+        <option value="@Module.Fourth.ToString()">Fourth module</option>
+    </select>
+
+    <select @bind-value="@_filters.SortTypeId" @bind-value:event="onchange">
+        <option value="@SortType.Newest">Newest</option>
+        <option value="@SortType.Oldest">Oldest</option>
+    </select>
+</div>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+@if (_tasks != null)
+{
+    <div class="scrollable-container mt-2 mb-2">
+        <div style="max-height: 100%; overflow: auto;">
+            @foreach (var task in _tasks)
+            {
+                <TaskCard OnEditTaskCallback="EditTask"
+                          OnViewHistoryCallback="ViewHistory"
+                          OnRemoveTaskCallback="RemoveTask"
+                          Task="@task"/>
+            }
+        </div>
+    </div>
+
+    <Pager PageSize="@PageSize" ItemsCount="@_tasksCount" OnChangePageCallback="@ChangePage"/>
+}
+
+<style>
+    .scrollable-container {
+        height: calc(100vh - 250px);
+        position: relative;
+    }
+
+    .searchTerm {
+        width: calc(100% - 100px);
+        border: 3px solid teal;
+        border-right: none;
+        padding: 5px;
+        height: 36px;
+        border-radius: 5px 0 0 5px;
+        outline: none;
+        color: #003153;
+    }
+
+    .searchTerm:focus {
+        color: teal;
+    }
+
+    .searchButton {
+        width: 100px;
+        height: 36px;
+        border: 1px solid teal;
+        background: teal;
+        text-align: center;
+        color: #fff;
+        border-radius: 0 5px 5px 0;
+        cursor: pointer;
+        font-size: 20px;
+    }
+</style>
+
+@code
+{
+    public const int PageSize = 10;
+
+    private bool _loading = true;
+
+    private IEnumerable<TaskGet> _tasks = null;
+
+    private long _tasksCount = 0;
+
+    private TaskFilters _filters = new TaskFilters
+    {
+        ModuleId = null,
+        TaskTypeId = null,
+        SortTypeId = SortType.Newest,
+        SearchTerm = string.Empty,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        _filters = (await LocalStorageService.GetItem<TaskFilters>("index-filters"))
+                   ?? new TaskFilters
+                   {
+                       ModuleId = null,
+                       TaskTypeId = null,
+                       SortTypeId = SortType.Newest,
+                       SearchTerm = string.Empty,
+                   };
+        await LocalStorageService.RemoveItem("index-filters");
+
+        _tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _tasks = await TaskService.GetTasksWithPaginationAndFiltersAsync(page, PageSize, _filters);
+        StateHasChanged();
+    }
+
+    private async Task Search()
+    {
+        _tasks = null;
+        _tasksCount = 0;
+        _loading = true;
+        StateHasChanged();
+
+        _tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnTypeFilterChanged(string type)
+    {
+        if (type == "null")
+        {
+            _filters.TaskTypeId = null;
+        }
+        else
+        {
+            _filters.TaskTypeId = (TaskType)Enum.Parse(typeof(TaskType), type);
+        }
+    }
+
+    private void OnModuleFilterChanged(string module)
+    {
+        if (module == "null")
+        {
+            _filters.ModuleId = null;
+        }
+        else
+        {
+            _filters.ModuleId = (Module)Enum.Parse(typeof(Module), module);
+        }
+    }
+
+    private async Task EditTask(long taskId)
+    {
+        await LocalStorageService.SetItem("index-filters", _filters);
+        NavigationManager.NavigateTo($"edit-task/{taskId}");
+    }
+
+    private async Task ViewHistory(long taskId)
+    {
+        await LocalStorageService.SetItem("index-filters", _filters);
+        NavigationManager.NavigateTo($"task-history/{taskId}");
+    }
+
+    private async Task RemoveTask(long taskId)
+    {
+        await TaskService.DeleteAsync(taskId);
+        _tasksCount--;
+        var tasks = _tasks.ToList();
+        tasks.Remove(tasks.Find(t => t.Id == taskId));
+        _tasks = tasks;
+        StateHasChanged();
+
+        MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        MenuService.NotifyChanged();
+    }
+}

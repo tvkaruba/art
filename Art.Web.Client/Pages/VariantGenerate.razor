@@ -1,0 +1,116 @@
+﻿@page "/variant-generate"
+
+@attribute [Authorize]
+
+@inject NavigationManager NavigationManager
+@inject ITaskService TaskService
+@inject IVariantService VariantService
+
+<h1>Generate variant</h1>
+
+<div class="row mt-2">
+    <select class="mr-2" @bind-value="@_module" @bind-value:event="onchange">
+        <option value="@Module.First.ToString()">First module</option>
+        <option value="@Module.Second.ToString()">Second module</option>
+        <option value="@Module.Third.ToString()">Third module</option>
+        <option value="@Module.Fourth.ToString()">Fourth module</option>
+    </select>
+
+    <input type="text"
+           placeholder="Type variant name..."
+           @bind-value="_variantName"
+           @bind-value:event="oninput">
+</div>
+
+<div class="btn btn-primary mt-2" @onclick="CreateVariant">
+    @if (_loading)
+    {
+        <span class="spinner-border spinner-border-sm mr-1"></span>
+    }
+    Generate
+</div>
+<div class="btn btn-primary mt-2" @onclick="@(() => NavigationManager.NavigateTo("variant-index"))">Cancel</div>
+
+<ul>
+    @foreach (var module in Enum.GetNames(typeof(Module)))
+    {
+        var currentModule = module;
+        <li>
+            @module:
+            <ul>
+                @foreach (var topic in _tasks
+                    .Where(t => t.ModuleId.ToString() == module)
+                    .SelectMany(t => t.Topics)
+                    .Distinct())
+                {
+                    var currentTopic = topic;
+                    <li>
+                        @topic: <input type="text" 
+                                       @bind-value="_topicsCounts[currentTopic]"
+                                       @bind-value:event="oninput"/>
+                        from @_tasks.Count(t => t.ModuleId.ToString() == currentModule && t.Topics.Contains(currentTopic))
+                    </li>
+                }
+            </ul>
+        </li>
+    }
+</ul>
+
+<style>
+    .row {
+        margin-left: 0px
+    }
+</style>
+
+@code
+{
+    private bool _loading = false;
+
+    private Module _module = Module.First;
+
+    private string _variantName = string.Empty;
+
+    private IEnumerable<TaskGet> _tasks = new List<TaskGet>();
+
+    private IDictionary<string, int> _topicsCounts = new Dictionary<string, int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tasks = await TaskService.GetAllAsync();
+        _topicsCounts = (await TaskService.GetAllTopicsAsync()).Topics.ToDictionary(t => t, t => 0);
+        StateHasChanged();
+    }
+
+    private async Task CreateVariant()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var rng = new Random();
+        var tasks = new List<long>();
+        foreach (var (topic, count) in _topicsCounts)
+        {
+            var ids = _tasks.Where(t => t.Topics.Contains(topic)).Select(t => t.Id);
+            rng.Shuffle<long>(ids.ToArray());
+
+            var localCount = 0;
+            foreach (var id in ids)
+            {
+                if (localCount < count && !tasks.Contains(id))
+                {
+                    tasks.Add(id);
+                }
+            }
+        }
+
+        await VariantService.CreateAsync(
+            new VariantPost
+            {
+                ModuleId = _module,
+                Name = _variantName,
+                TaskIds = tasks,
+            });
+
+        NavigationManager.NavigateTo("variant-index");
+    }
+}

@@ -1,0 +1,34 @@
+{
+  "Serilog": {
+    "Using": [
+      "Serilog.Sinks.MSSqlServer"
+    ],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Default": "Information",
+        "Microsoft": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "MSSqlServer",
+        "Args": {
+          "connectionString": "Server=(local)\\LOCALDEV; Database=ART; Trusted_connection=true",
+          "sinkOptionsSection": {
+            "tableName": "Log",
+            "schemaName": "dbo",
+            "autoCreateSqlTable": true,
+            "batchPostingLimit": 1000,
+            "period": "0.00:00:30"
+          },
+          "restrictedToMinimumLevel": "Information"
+        }
+      }
+    ],
+    "Enrich": [
+      "FromLogContext"
+    ]
+  }
+}

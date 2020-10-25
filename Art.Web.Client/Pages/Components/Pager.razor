@@ -1,0 +1,26 @@
+﻿@inherits PagerBase
+
+<div class="pagination">
+    <button class="btn btn-info" @onclick=@(() => SetPagerSize("back"))>&laquo;</button>
+    <button class="btn btn-secondary" @onclick=@(async _ => await NavigateToPage("previous"))>&lt;</button>
+
+    @for (var i = StartPage; i <= EndPage; ++i)
+    {
+        var currentPage = i;
+        <button class="btn @(currentPage == CurPage ? "currentpage" : string.Empty)" @onclick=@(async _ => await NavigateToPage(currentPage))>
+            @currentPage
+        </button>
+    }
+
+    <button class="btn btn-secondary" @onclick=@(async _ => await NavigateToPage("next"))>&gt;</button>
+    <button class="btn btn-info" @onclick=@(() => SetPagerSize("forward"))>&raquo;</button>
+
+    <span class="text-muted ml-5">Page @CurPage of @PagesCount</span>
+</div>
+
+<style>
+    .currentpage {
+        background-color: dodgerblue;
+        color: white;
+    }
+</style>
