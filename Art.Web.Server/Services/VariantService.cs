@@ -34,7 +34,7 @@ namespace Art.Web.Server.Services
             {
                 var task = Mapper.Map<TaskGet>(dbTask);
                 task.Answers = (await UnitOfWork.TaskRepository.QueryAnswersByTaskIdAsync(task.Id)).ToList();
-                task.Rights = (await UnitOfWork.TaskRepository.QueryAnswersByTaskIdAsync(task.Id)).ToList();
+                task.Rights = (await UnitOfWork.TaskRepository.QueryRightsByTaskIdAsync(task.Id)).ToList();
                 task.Topics = (await UnitOfWork.TaskRepository.QueryTopicsByTaskIdAsync(task.Id)).ToList();
                 task.Tags = (await UnitOfWork.TaskRepository.QueryTagsByTaskIdAsync(task.Id)).ToList();
                 tasks.Add(task);
