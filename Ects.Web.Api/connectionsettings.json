@@ -1,5 +1,0 @@
-{
-  "ConnectionStrings": {
-    "ART": "Server=(local)\\LOCALDEV; Database=ECTS; Trusted_connection=true"
-  }
-}
