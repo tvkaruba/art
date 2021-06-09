@@ -1,0 +1,44 @@
+{
+  "Serilog": {
+    "Using": [
+      "Serilog.Sinks.MSSqlServer",
+      "Serilog.Sinks.File"
+    ],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Default": "Information",
+        "Microsoft": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "MSSqlServer",
+        "Args": {
+          "connectionString": "Server=(local)\\LOCALDEV; Database=ART; Trusted_connection=true",
+          "sinkOptionsSection": {
+            "tableName": "Log",
+            "schemaName": "dbo",
+            "autoCreateSqlTable": true,
+            "batchPostingLimit": 1000,
+            "period": "0.00:00:30"
+          },
+          "restrictedToMinimumLevel": "Information"
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "%PROGRAMDATA%\\Art\\Logs/log_.log",
+          "outputTemplate": "{Timestamp:o} [{Level:u3}] ({SourceContext}) {Message}{NewLine}{Exception}",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 7
+        }
+      }
+    ],
+    "Enrich": [
+      "FromLogContext"
+    ]
+  }
+}

@@ -1,0 +1,188 @@
+﻿@page "/questions-import"
+
+@using Art.Web.Client.Services.Abstractions
+@using Ects.Web.Repository.Models
+@using Ects.Web.Shared.Models.Task
+@using Ects.Web.Repository.Pages.Components
+@using System.Reflection
+@using Ects.Web.Repository.Extensions
+
+@inject IMenuService MenuService
+
+<style>
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+               }
+</style>
+
+<div class="container">
+    <h1>Upload tasks</h1>
+    
+    <label>Choose namespace</label>
+    <select @bind="_namespace" class="form-control mb-2">
+        @foreach (var member in FakeRepository.Namespaces)
+        {
+            <option value="@member.Name">@member.Name</option>
+        }
+    </select>
+
+    <DrugnDrop OnReadClickCallback="@ReadFile" OnClearClickCallback="@ClearFiles" />
+    <br />
+    <input type="checkbox" @bind=_firstRowIsHeader id="firstRowIsHeader" />
+    <label for="firstRowIsHeader">Treat first row as header</label>
+    <XlsxReader OnSaveClickCallback="@SaveFile" Reader="@_reader" Message="@_message" FirstRowIsHeader="@_firstRowIsHeader" />
+</div>
+
+@code 
+{
+    private IFileReaderRef _reader = null;
+
+    private string _message = string.Empty;
+
+    private bool _firstRowIsHeader = true;
+
+    private string _namespace = "";
+
+    private async Task ReadFile(IFileReaderRef reader)
+    {
+        _reader = reader;
+        StateHasChanged();
+    }
+
+    private async Task ClearFiles()
+    {
+        _reader = null;
+        _message = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task SaveFile(TablesModel file)
+    {
+        var errors = new List<string>();
+        foreach (var table in file.Tables)
+        {
+            foreach (var row in table.Body)
+            {
+                try
+                {
+                    var question = new Question();
+                    question.Name = row.Cells[0].Value ?? string.Empty;
+                    question.Description = row.Cells[1].Value ?? string.Empty;
+                    question.Body = row.Cells[2].Value ?? string.Empty;
+                    question.Answers = row.Cells[3].Value ?? string.Empty;
+                    question.Rights = row.Cells[4].Value ?? string.Empty;
+
+                    switch (row.Cells[5].Value.ToLower())
+                    {
+                        case "free-exactly":
+                            question.QuestionTypeId = 0;
+                            break;
+
+                        case "single":
+                            question.QuestionTypeId = 1;
+                            break;
+
+                        case "multiple-exactly":
+                            question.QuestionTypeId = 2;
+                            break;
+
+                        case "match":
+                            question.QuestionTypeId = 3;
+                            break;
+
+                        default:
+                            throw new ArgumentException(row.ToString(), nameof(Module));
+                    }
+
+                    var tags = (row.Cells[6].Value ?? string.Empty).Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+                    var existingTasks = FakeRepository.Questions.Where(t => t.IsActive).ToList();
+
+                    FakeRepository.Questions.Add(
+                        new Question
+                        {
+                            Id = FakeRepository.Questions.Count,
+                            Name = question.Name,
+                            Description = question.Description,
+                            Body = question.Body,
+                            Rights = question.Rights,
+                            Answers = question.Answers,
+                            ChangedAtUtc = null,
+                            ChangedBy = null,
+                            CreatedAtUtc = DateTime.UtcNow,
+                            CreatedBy = 0,
+                            Dislikes = 0,
+                            Likes = 0,
+                            IsActive = true,
+                            NamespaceId = FakeRepository.Namespaces.Single(_ => _.Name == _namespace).Id,
+                            QuestionTypeId = question.QuestionTypeId,
+                        });
+
+                    foreach (var tag in tags)
+                    {
+                        if (!FakeRepository.Tags.Select(_ => _.Value).Contains(tag))
+                            FakeRepository.Tags.Add(
+                                new Tag
+                                {
+                                    Id = FakeRepository.Tags.Count,
+                                    Key = "question",
+                                    Value = tag,
+                                });
+
+                        FakeRepository.QuestionTagLinks.Add(
+                            new QuestionTagLink
+                            {
+                                Id = FakeRepository.QuestionTagLinks.Count,
+                                QuestionId = FakeRepository.Questions.Count - 1,
+                                TagId = FakeRepository.Tags.Count - 1,
+                            });
+                    }
+
+                    var conflictedIds = new List<long>();
+                    foreach (var existingTask in existingTasks)
+                    {
+                        if (FakeRepository.Questions.Last().Id != existingTask.Id &&
+                            FakeRepository.Questions.Last().Body.LevenshteinSimilarity(existingTask.Body) < 0.1)
+                        {
+                            conflictedIds.Add(existingTask.Id);
+                        }
+                    }
+
+                    foreach (var conflictedId in conflictedIds)
+                    {
+                        FakeRepository.QuestionQuestionConflicts.Add(
+                            new QuestionQuestionConflict
+                            {
+                                Id = FakeRepository.QuestionQuestionConflicts.Count,
+                                SecondQuestionId = FakeRepository.Questions.Count - 1,
+                                FirstQuestionId = conflictedId,
+                                IsResolved = false,
+                            });
+                    }
+
+                    MenuService.HasConflicts = FakeRepository.QuestionQuestionConflicts.Any(_ => _.IsResolved == false);
+                    MenuService.NotifyChanged();
+                    StateHasChanged();
+                }
+                catch (Exception e)
+                {
+                    errors.Add(e.Message);
+                }
+            }
+        }
+
+        if (errors.Any())
+        {
+            errors = errors.Prepend($"{errors.Count} errors occured:").ToList();
+            _message = string.Join(Environment.NewLine, errors);
+        }
+        else
+        {
+            _message = "Tasks saved in repository.";
+        }
+
+        StateHasChanged();
+    }
+}

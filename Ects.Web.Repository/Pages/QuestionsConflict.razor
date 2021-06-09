@@ -1,0 +1,95 @@
+﻿@page "/conflicts"
+@using Art.Web.Client.Services.Abstractions
+@using Ects.Web.Repository.Pages.Components
+
+@attribute [Authorize(Policy = "RequireAdministratorRole")]
+
+@inject NavigationManager NavigationManager
+@inject IMenuService MenuService
+
+<style>
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+               }
+</style>
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+<div class="container">
+    <h1>Resolve conflicts</h1>
+
+    @if (_conflicts != null)
+    {
+        @foreach (var conflict in _conflicts)
+        {
+            var left = FakeRepository.Questions[(int)conflict.SecondQuestionId];
+            var right = FakeRepository.Questions[(int)conflict.FirstQuestionId];
+            <ConflictCard OnKeepLeftTaskCallback="KeepOnlyOne"
+                          OnKeepRightTaskCallback="KeepOnlyOne"
+                          OnKeepBothTasksCallback="KeepBoth"
+                          LeftTask="@left"
+                          RightTask="@right" />
+        }
+    }
+</div>
+
+@code
+{
+    private bool _loading = true;
+
+    private IEnumerable<QuestionQuestionConflict> _conflicts = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        _conflicts = FakeRepository.QuestionQuestionConflicts.Where(_ => _.IsResolved == false).ToList();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task KeepOnlyOne(long taskId)
+    {
+        FakeRepository.Questions[(int)taskId].IsActive = false;
+
+        var conflicts = _conflicts.ToList();
+        conflicts = conflicts.Where(c => c.FirstQuestionId == taskId || c.SecondQuestionId == taskId).ToList();
+        foreach (var conflict in conflicts)
+        {
+            conflict.IsResolved = true;
+        }
+        _conflicts = FakeRepository.QuestionQuestionConflicts.Where(_ => _.IsResolved == false);
+
+        StateHasChanged();
+
+        MenuService.HasConflicts = FakeRepository.QuestionQuestionConflicts.Any(_ => _.IsResolved == false);
+        MenuService.NotifyChanged();
+
+        StateHasChanged();
+    }
+
+    private async Task KeepBoth((long left, long right) tasks)
+    {
+        var conflicts = _conflicts.ToList();
+        conflicts = conflicts.Where(c => c.FirstQuestionId == tasks.left && c.SecondQuestionId == tasks.right || c.FirstQuestionId == tasks.right && c.SecondQuestionId == tasks.left).ToList(); ;
+        foreach (var conflict in conflicts)
+        {
+            conflict.IsResolved = true;
+        }
+        _conflicts = FakeRepository.QuestionQuestionConflicts.Where(_ => _.IsResolved == false);
+
+        StateHasChanged();
+
+        MenuService.HasConflicts = FakeRepository.QuestionQuestionConflicts.Any(_ => _.IsResolved == false);
+        MenuService.NotifyChanged();
+
+        StateHasChanged();
+    }
+}
+

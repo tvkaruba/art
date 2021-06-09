@@ -1,0 +1,230 @@
+﻿@page "/questions/namespaces/{id}"
+
+@using Ects.Web.Repository.Pages.Components
+
+@attribute [Authorize]
+
+@inject NavigationManager NavigationManager
+
+@if (_loading)
+{
+    <div class="spinner-border spinner-border-sm"></div>
+}
+
+<div class="container">
+    <h1>Questions</h1>
+
+    <div class="row">
+        <input type="text"
+               class="searchTerm"
+               placeholder="Type search pattern..."
+               @bind-value="_searchTerm"
+               @bind-value:event="oninput">
+        <button type="button" class="searchButton" @onclick="Search">Search</button>
+    </div>
+
+    <div class="row">
+            <select class="mr-2" value="@(_filters.TaskTypeId.HasValue ? _filters.TaskTypeId.ToString() : "null")"
+                    @onchange="@(e => OnTypeFilterChanged(e.Value.ToString()))">
+                <option value="null">Select type</option>
+                <option value="@TaskType.Free.ToString()">Free answer</option>
+                <option value="@TaskType.Single.ToString()">Single answer</option>
+                <option value="@TaskType.Multiple.ToString()">Multiple answers</option>
+                <option value="@TaskType.Match.ToString()">Match answers</option>
+            </select>
+
+            <select class="mr-2" value="@(_filters.ModuleId.HasValue ? _filters.ModuleId.ToString() : "null")"
+                    @onchange="@(e => OnModuleFilterChanged(e.Value.ToString()))">
+                <option value="null">Select module</option>
+                <option value="@Module.First.ToString()">First module</option>
+                <option value="@Module.Second.ToString()">Second module</option>
+                <option value="@Module.Third.ToString()">Third module</option>
+                <option value="@Module.Fourth.ToString()">Fourth module</option>
+            </select>
+
+            <select @bind-value="@_filters.SortTypeId" @bind-value:event="onchange">
+                <option value="@SortType.Newest">Newest</option>
+                <option value="@SortType.Oldest">Oldest</option>
+            </select>
+        </div>
+
+    @if (_questions != null)
+    {
+        <div class="scrollable-container">
+            <div style="max-height: 100%; overflow: auto;">
+                @foreach (var task in _questions)
+                {
+                    if (task.QuestionTypeId == 0)
+                    {
+                        <Ects.Web.Repository.Pages.Components.Questions.FreeExactlyView OnEditTaskCallback="EditTask" OnViewHistoryCallback="ViewHistory" OnRemoveTaskCallback="RemoveTask" Question="@task" />
+                    }
+                    else
+                    {
+                        <Ects.Web.Repository.Pages.Components.Questions.MultipleView OnEditTaskCallback="EditTask" OnViewHistoryCallback="ViewHistory" OnRemoveTaskCallback="RemoveTask" Question="@task" />
+                    }
+                }
+            </div>
+        </div>
+
+        <Pager PageSize="@PageSize" ItemsCount="@_tasksCount" OnChangePageCallback="@ChangePage" />
+    }
+</div>
+
+<style>
+    .scrollable-container {
+        height: calc(100vh - 200px);
+        position: relative;
+    }
+
+    .searchTerm {
+        width: calc(100% - 115px);
+        border: 3px solid black;
+        border-right: none;
+        padding: 5px;
+        height: 36px;
+        border-radius: 5px 0 0 5px;
+        outline: none;
+        color: black;
+    }
+
+        .searchTerm:focus {
+            color: gray;
+        }
+
+    .searchButton {
+        width: 100px;
+        height: 36px;
+        border: 1px solid black;
+        background: black;
+        text-align: center;
+        color: #fff;
+        border-radius: 0 5px 5px 0;
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+    }
+</style>
+
+@code
+{
+    [Parameter]
+    public string Id { get; set; }
+
+    public long NamespaceId => long.Parse(Id);
+
+    public const int PageSize = 10;
+
+    private bool _loading = true;
+
+    private List<Question> _questions = null;
+
+    private long _tasksCount = 0;
+
+    private string _searchTerm = string.Empty;
+
+    //private TaskFilters _filters = new TaskFilters
+    //{
+    //    ModuleId = null,
+    //    TaskTypeId = null,
+    //    SortTypeId = SortType.Newest,
+    //    SearchTerm = string.Empty,
+    //};
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        //_filters = (await LocalStorageService.GetItem<TaskFilters>("index-filters"))
+        //           ?? new TaskFilters
+        //           {
+        //               ModuleId = null,
+        //               TaskTypeId = null,
+        //               SortTypeId = SortType.Newest,
+        //               SearchTerm = string.Empty,
+        //           };
+        //await LocalStorageService.RemoveItem("index-filters");
+
+        _tasksCount = FakeRepository.Questions.Where(_ => _.NamespaceId == NamespaceId).Where(_ => _.IsActive).Count();
+        //_tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (!string.IsNullOrEmpty(_searchTerm))
+            _questions = FakeRepository.Questions.Where(_ => _.NamespaceId == NamespaceId && (_.Name.Contains(_searchTerm) || _.Description.Contains(_searchTerm) || _.Body.Contains(_searchTerm))).Where(_ => _.IsActive).Skip(page * PageSize >= FakeRepository.Questions.Count ? 0 : page * PageSize).Take(PageSize).ToList();
+        else
+            _questions = FakeRepository.Questions.Where(_ => _.NamespaceId == NamespaceId).Where(_ => _.IsActive).Skip(page * PageSize >= FakeRepository.Questions.Count ? 0 : page * PageSize).Take(PageSize).ToList();
+        //_tasks = await TaskService.GetTasksWithPaginationAndFiltersAsync(page, PageSize, _filters);
+        StateHasChanged();
+    }
+
+    private async Task Search()
+    {
+        _questions = null;
+        _tasksCount = 0;
+        _loading = true;
+        StateHasChanged();
+
+        _tasksCount = FakeRepository.Questions.Where(_ => _.NamespaceId == NamespaceId && (_.Name.Contains(_searchTerm) || _.Description.Contains(_searchTerm) || _.Body.Contains(_searchTerm))).Where(_ => _.IsActive).Count();
+        //_tasksCount = await TaskService.GetTasksCountWithFilters(_filters);
+        await ChangePage(1);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    //private void OnTypeFilterChanged(string type)
+    //{
+    //    if (type == "null")
+    //    {
+    //        _filters.TaskTypeId = null;
+    //    }
+    //    else
+    //    {
+    //        _filters.TaskTypeId = (TaskType)Enum.Parse(typeof(TaskType), type);
+    //    }
+    //}
+
+    //private void OnModuleFilterChanged(string module)
+    //{
+    //    if (module == "null")
+    //    {
+    //        _filters.ModuleId = null;
+    //    }
+    //    else
+    //    {
+    //        _filters.ModuleId = (Module)Enum.Parse(typeof(Module), module);
+    //    }
+    //}
+
+    private async Task EditTask(long taskId)
+    {
+        NavigationManager.NavigateTo($"question-edit/{taskId}");
+    }
+
+    private async Task ViewHistory(long taskId)
+    {
+        NavigationManager.NavigateTo($"question-history/{taskId}");
+    }
+
+    private async Task RemoveTask(long taskId)
+    {
+        FakeRepository.Questions[(int)taskId].IsActive = false;
+        //await TaskService.DeleteAsync(taskId);
+        _tasksCount--;
+        _questions.Remove(_questions.Find(t => t.Id == taskId));
+        StateHasChanged();
+
+        //MenuService.HasConflicts = (await TaskService.GetTaskConflicts()).Any();
+        //MenuService.NotifyChanged();
+    }
+}

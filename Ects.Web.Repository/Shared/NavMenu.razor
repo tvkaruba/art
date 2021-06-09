@@ -1,0 +1,107 @@
+﻿@using Art.Web.Client.Services.Abstractions
+@inject IMenuService MenuService
+@implements IDisposable
+
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <a class="navbar-brand" href="">ECTS</a>
+    <button class="navbar-toggler"
+            type="button"
+            data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent"
+            aria-expanded="false"
+            aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse bg-dark text-light" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="oi oi-home" aria-hidden="true"></span> Schedule
+                </NavLink>
+            </li>
+            <AuthorizeView>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="questions/namespaces">
+                        <span class="oi oi-list" aria-hidden="true"></span> Questions
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="tests/namespaces">
+                        <span class="oi oi-pencil" aria-hidden="true"></span> Tests
+                    </NavLink>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle"
+                       href=""
+                       id="navbarDropdownMenuLink"
+                       data-toggle="dropdown"
+                       aria-haspopup="true"
+                       aria-expanded="false">
+                        Other
+                    </a>
+                    <div class="dropdown-menu bg-dark text-light" aria-labelledby="navbarDropdownMenuLink">
+                        <NavLink class="nav-link dropdown-item" href="question-new">
+                            <span class="oi oi-plus" aria-hidden="true"></span> Create Question
+                        </NavLink>
+                        <NavLink class="nav-link dropdown-item" href="test-new">
+                            <span class="oi oi-list" aria-hidden="true"></span> Create Test
+                        </NavLink>
+                        <NavLink class="nav-link dropdown-item" href="exam-new">
+                            <span class="oi oi-pencil" aria-hidden="true"></span> Create Exam
+                        </NavLink>
+                        <div class="dropdown-divider"></div>
+                        <NavLink class="nav-link dropdown-item" href="questions-import">
+                            <span class="oi oi-cloud-upload" aria-hidden="true"></span> Import Questions
+                        </NavLink>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="conflicts">
+                        <span class="@(MenuService.HasConflicts ? "oi oi-bug bug-red" : "oi oi-bug bug-green")" aria-hidden="true"></span>
+                        @if (MenuService.HasConflicts)@FakeRepository.QuestionQuestionConflicts.Count
+                    </NavLink>
+                </li>
+            </AuthorizeView>
+        </ul>
+    </div>
+</nav>
+
+<style>
+    #nav {
+        z-index: 2;
+    }
+
+    .dropdown {
+        z-index: 2;
+    }
+
+    .bug-red {
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(-50deg) saturate(600%) contrast(0.8);
+    }
+
+    .bug-green {
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(50deg) saturate(1000%) contrast(0.8);
+    }
+</style>
+
+@code
+{
+    protected override void OnInitialized()
+    {
+        MenuService.OnChanged += MenuChanged;
+        MenuService.HasConflicts = FakeRepository.QuestionQuestionConflicts.Any(_ => _.IsResolved == false);
+        MenuService.NotifyChanged();
+    }
+
+    void IDisposable.Dispose()
+    {
+        MenuService.OnChanged -= MenuChanged;
+    }
+
+    private void MenuChanged(object obj, EventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

@@ -1,0 +1,152 @@
+﻿@using Ects.Web.Repository.Models
+@using Ects.Web.Repository.Helpers
+@inject IFileReaderService FileReaderService
+
+<style>
+    .excel {
+        border: 1px solid black;
+    }
+
+    .excel td {
+        border: 1px solid black;
+        padding: 5px;
+    }
+
+    .excel th {
+        border: 2px solid black;
+        padding: 5px;
+        text-align: center;
+    }
+
+    .excel caption {
+        text-align: center;
+    }
+</style>
+
+@if (!string.IsNullOrEmpty(@Message))
+{
+    <h3>Preview</h3>
+    <h6>@Message</h6>
+    <button @onclick="@SaveClick" class="btn btn-primary">
+        @if (_loading)
+        {
+            <span class="spinner-border spinner-border-sm mr-1"></span>
+        }
+        Save
+    </button>
+    <br />
+    <br />
+
+    @foreach (var table in Tables.Tables)
+    {
+        <table class="excel">
+            <caption>@table.Name</caption>
+            @if (table.Header != null)
+            {
+                <thead>
+                    <tr>
+                        @foreach (var cell in table.Header.Cells)
+                        {
+                            <th rowspan="@cell.Rowspan" colspan="@cell.Colspan">@cell.Value</th>
+                        }
+                    </tr>
+                </thead>
+            }
+            <tbody>
+                @foreach (var row in table.Body)
+                {
+                    <tr>
+                        @foreach (var cell in row.Cells)
+                        {
+                            <td rowspan="@cell.Rowspan" colspan="@cell.Colspan">@cell.Value</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter]
+    public EventCallback<TablesModel> OnSaveClickCallback { get; set; }
+
+    [Parameter]
+    public IFileReaderRef Reader { get; set; } = null;
+
+    [Parameter]
+    public bool FirstRowIsHeader { get; set; } = true;
+
+    [Parameter]
+    public string Message { get; set; } = string.Empty;
+
+    TablesModel Tables = new TablesModel();
+
+    private bool _loading = false;
+
+    private IFileReaderRef _previousReader = null;
+
+    private bool _previousFirstRowIsHeader = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Reader != _previousReader)
+        {
+            _previousReader = Reader;
+            await ReadFileAsync();
+        }
+
+        if (FirstRowIsHeader != _previousFirstRowIsHeader)
+        {
+            _previousFirstRowIsHeader = FirstRowIsHeader;
+            await ReadFileAsync();
+        }
+    }
+
+    public async Task ReadFileAsync()
+    {
+        Message = string.Empty;
+        this.StateHasChanged();
+
+        if (Reader == null)
+        {
+            return;
+        }
+
+        var file = (await Reader.EnumerateFilesAsync()).FirstOrDefault();
+        if (file != null)
+        {
+            var fileInfo = await file.ReadFileInfoAsync();
+
+            try
+            {
+                Message = "Reading file...";
+                this.StateHasChanged();
+
+                var fileInRam = await file.CreateMemoryStreamAsync(bufferSize: 4096);
+
+                Message = "Parsing file...";
+                this.StateHasChanged();
+
+                using (var package = new OfficeOpenXml.ExcelPackage(fileInRam))
+                {
+                    Tables = EppBuilder.Parse(package, FirstRowIsHeader);
+                }
+
+                this.StateHasChanged();
+                Message = $"Upload '{fileInfo.Name}' successfully.";
+            }
+            catch (Exception e)
+            {
+                Message = e.ToString();
+            }
+        }
+    }
+
+    public async Task SaveClick()
+    {
+        _loading = true;
+        await OnSaveClickCallback.InvokeAsync(Tables);
+        _loading = false;
+    }
+}

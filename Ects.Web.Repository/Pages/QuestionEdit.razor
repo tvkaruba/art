@@ -1,0 +1,48 @@
+﻿@page "/question-edit/{id}"
+
+@using Microsoft.AspNetCore.Authorization
+
+@inherits QuestionNewBase
+
+@*@attribute [Authorize(Roles = "Administrator")]*@
+
+<style>
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+               }
+</style>
+
+<div class="container">
+    @switch (_question.QuestionTypeId)
+    {
+        case 0:
+            <Ects.Web.Repository.Pages.Components.Questions.FreeExactlyEdit Question="_question" />
+            break;
+
+        case 1:
+            <p>empty</p>
+            break;
+
+        case 2:
+            <p>empty</p>
+            break;
+
+        default:
+            break;
+    }
+</div>
+
+@code
+{
+    [Parameter]
+    public string Id { get; set; }
+
+    private Question _question;
+
+    protected override void OnInitialized()
+    {
+        _question = FakeRepository.Questions[int.Parse(Id)];
+    }
+}

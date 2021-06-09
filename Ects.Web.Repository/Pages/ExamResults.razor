@@ -1,0 +1,37 @@
+﻿@page "/exam-results"
+
+@attribute [Authorize]
+
+<div class="container">
+    @foreach (var examination in FakeRepository.ExamParticipants)
+    {
+        <label>@FakeRepository.Exams[(int)examination.ExamId].Name</label>
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Question</th>
+                <th>Result</th>
+            </tr>
+            </thead>
+            @foreach (var question in FakeRepository.ExamParticipantAnswer.Where(_ => _.ExamParticipantId == examination.Id))
+            {
+                <tr>
+                    <td> @FakeRepository.Questions[(int)question.QuestionId].Name </td>
+                    <td> @question.Value </td>
+                </tr>
+            }
+            <tr>
+                <td> Total </td>
+                <td> @examination.Result / @examination.MaxResult </td>
+            </tr>
+        </table>
+    }
+</div>
+
+<style>
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+               }
+</style>

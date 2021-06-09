@@ -1,0 +1,26 @@
+﻿@inherits UserProfileBase
+
+<AuthorizeView>
+    <Authorized>
+        <h4>User Profile</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tr>
+                <td> Display Name </td>
+                <td> @User.DisplayName </td>
+            </tr>
+            <tr>
+                <td> Principal Name </td>
+                <td> @User.UserPrincipalName </td>
+            </tr>
+        </table>
+    </Authorized>
+    <NotAuthorized>
+        Sign-in to see user profile.
+    </NotAuthorized>
+</AuthorizeView>

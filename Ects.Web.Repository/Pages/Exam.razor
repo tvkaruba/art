@@ -1,0 +1,200 @@
+﻿@page "/exam/{examId}"
+
+@using Ects.Web.Checker
+@using Ects.Web.Shared.QuestionTypes.Abstractions
+@using System.Threading
+
+@inherits ExamBase
+
+@implements IDisposable
+
+@inject NavigationManager NavigationManager
+@inject IEnumerable<IQuestionType> QuestionTypes
+
+<style>
+    .red {
+        color: palevioletred;
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(-50deg) saturate(600%) contrast(0.8);
+    }
+
+    .green {
+        color: lightgreen;
+        filter: grayscale(100%) brightness(40%) sepia(100%) hue-rotate(50deg) saturate(1000%) contrast(0.8);
+    }
+
+    .sidebar {
+        height: 100%;
+        width: 30%;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content:space-between;
+    }
+
+    .btn-light {
+        width: 100%;
+        opacity: 0.5;
+    }
+
+    .btn-dark {
+        width: 100%;
+    }
+
+    .row {
+        margin-left: 0;
+    }
+
+    .container {
+        height: 1000px;
+    }
+</style>
+
+<div class="row container">
+    <div class="sidebar">
+        <table class="table-borderless">
+            <thead>
+                @if (_timer != null)
+                {
+                    <tr class="p-1">
+                        <th class="align-content-center">@_time.ToString()</th>
+                    </tr>
+                }
+                @foreach (var question in _questions)
+                {
+                    var current = question;
+                    <tr class="p-1">
+                        <td>
+                            <button class="btn btn-light" style="height: 30px" @onclick="@(() => ChangeQuestion(current))">
+                                <div class="row">
+                                    @if (current.Id == currentQuestion.Id)
+                                    {
+                                        <span class="oi oi-eye mr-2"></span>
+                                    }
+                                    <p class=@(answered.Contains(current.Id) ? "green" : "red")>@current.Name</p>
+                                </div>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </thead>
+        </table>
+        <button class="btn-dark px-3" @onclick="FinishTest">Finish test</button>
+    </div>
+
+    <div class="main ml-5">
+        @switch (currentQuestion.QuestionTypeId.ToString())
+        {
+            case "0":
+                <Ects.Web.Repository.Pages.Components.Questions.FreeExactlyTest CurrentQuestion="@currentQuestion" />
+                break;
+
+            case "1":
+                <p>empty</p>
+                break;
+
+            case "2":
+                <Ects.Web.Repository.Pages.Components.Questions.MultipleTest CurrentQuestion="@currentQuestion" />
+                break;
+
+            default:
+                break;
+        }
+
+        <div class="row mt-5">
+            <button class="btn-primary" @onclick="Submit">Submit</button>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    private Timer _timer;
+
+    private TimeSpan _time;
+
+    [Parameter]
+    public string ExamId { get; set; }
+
+    private List<Question> _questions;
+
+    private Question currentQuestion;
+
+    private List<long> answered = new List<long>();
+
+    private TestingSystem _checker;
+
+    protected override async Task OnInitializedAsync()
+    {
+        StudentAnswers.Clear();
+        var testId = FakeRepository.Exams.Single(_ => _.Id == int.Parse(ExamId)).TestId;
+        var links = FakeRepository.TestQuestionLinks.Where(l => l.TestId == testId);
+        _questions = FakeRepository.Questions.Where(q => links.Select(l => l.QuestionId).Contains(q.Id)).ToList();
+        currentQuestion = _questions.First();
+        _checker = new TestingSystem(QuestionTypes);
+        _time = TimeSpan.FromMinutes(FakeRepository.Exams[int.Parse(ExamId)].MaxDurationInMinutes);
+        _timer = new Timer(async _ =>
+        {
+            if (_time.TotalSeconds < 0)
+                await InvokeAsync(FinishTest);
+            _time = _time.Subtract(TimeSpan.FromSeconds(1));
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+
+    private void ChangeQuestion(Question question)
+    {
+        currentQuestion = question;
+        StateHasChanged();
+    }
+
+    private void Submit()
+    {
+        if (!answered.Contains(currentQuestion.Id))
+            answered.Add(currentQuestion.Id);
+        var temp = _questions.FindIndex(_ => _.Id == currentQuestion.Id);
+        if (temp + 1 >= _questions.Count)
+            temp = 0;
+        else
+            temp++;
+        currentQuestion = _questions.ElementAt(temp);
+        StateHasChanged();
+    }
+
+    private void FinishTest()
+    {
+        foreach (var skippedQuestionId in _questions.Select(_ => _.Id).Where(x => !ExamBase.StudentAnswers.Select(_ => _.QuestionId).Contains(x)))
+        {
+            StudentAnswers.Add(
+                new ExamParticipantAnswer
+                {
+                    Answer = "",
+                    ExamParticipantId = FakeRepository.ExamParticipants.Single(_ => _.ExamId == int.Parse(ExamId) && _.AccountId == 0).Id,
+                    Id = 0,
+                    QuestionId = skippedQuestionId,
+                    Value = -1,
+                });
+        }
+
+        foreach (var answer in StudentAnswers)
+            FakeRepository.ExamParticipantAnswer.Add(
+                new ExamParticipantAnswer
+                {
+                    Id = FakeRepository.ExamParticipantAnswer.Count,
+                    ExamParticipantId = FakeRepository.ExamParticipants.Single(_ => _.ExamId == int.Parse(ExamId) && _.AccountId == 0).Id,
+                    QuestionId = answer.QuestionId,
+                    Value = -1,
+                    Answer = answer.Answer,
+                });
+
+        FakeRepository.ExamParticipants.Single(_ => _.ExamId == int.Parse(ExamId) && _.AccountId == 0).EndTime = DateTime.UtcNow;
+
+        _checker.CheckAnswers(StudentAnswers.Select(_ => _.Id));
+
+        NavigationManager.NavigateTo($"");
+    }
+}

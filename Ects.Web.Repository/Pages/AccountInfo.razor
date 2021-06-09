@@ -1,0 +1,24 @@
+﻿@page "/account-info"
+
+@using Microsoft.AspNetCore.Authorization
+@using Ects.Web.Repository.Pages.Components
+
+@inherits AccountInfoBase
+
+@attribute [Authorize]
+
+<div class="container">
+    <UserClaims />
+    <br />
+    <UserProfile />
+
+    <div class="btn btn-primary" @onclick="SeeResults">Results</div>
+</div>
+
+<style>
+    .container {
+        margin: auto;
+        width: 70%;
+        padding: 10px;
+               }
+</style>
