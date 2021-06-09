@@ -1,1 +1,0 @@
-# Extendable Computer Testing System
